@@ -1,5 +1,6 @@
 import { neon } from "@neondatabase/serverless";
 import { resolveDatabaseUrl } from "@/lib/db/url";
+import { accessSummary } from "@/lib/access";
 
 /**
  * Public deployment diagnostics. Reports only whether config is present (never values,
@@ -58,7 +59,19 @@ export async function GET() {
     }
   }
 
+  let access: Awaited<ReturnType<typeof accessSummary>> | { error: string } | null = null;
+  if (database.reachable) {
+    try {
+      access = await accessSummary();
+    } catch (err) {
+      access = { error: err instanceof Error ? err.message : String(err) };
+    }
+  }
+
   const notes: string[] = [];
+  if (!process.env.ADMIN_EMAIL) {
+    notes.push("ADMIN_EMAIL is not set: nobody can set up the household and only existing members/invitees can sign in.");
+  }
   if (senderDomain === "resend.dev") {
     notes.push(
       "Using onboarding@resend.dev: Resend only delivers to the email address that owns the Resend account. Verify a domain in Resend to email anyone else.",
@@ -73,5 +86,5 @@ export async function GET() {
     !!from;
 
   // Always 200 so simple fetchers can read the body; check `ok` instead.
-  return Response.json({ ok, env, database, notes });
+  return Response.json({ ok, env, database, access, notes });
 }

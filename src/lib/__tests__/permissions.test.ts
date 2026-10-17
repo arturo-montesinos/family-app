@@ -122,12 +122,20 @@ describe("members", () => {
   const adultM = { userId: adult.userId, role: "adult" as const };
   const childM = { userId: child.userId, role: "child" as const };
 
-  it("only owner changes roles; last owner can't be demoted", () => {
+  it("only owner changes roles; nobody is promoted to owner; last owner can't be demoted", () => {
     expect(canChangeRole(owner, adultM, "child", 1)).toBe(true);
-    expect(canChangeRole(owner, adultM, "owner", 1)).toBe(true);
+    expect(canChangeRole(owner, adultM, "owner", 1)).toBe(false);
+    expect(canChangeRole(owner, childM, "owner", 1)).toBe(false);
     expect(canChangeRole(adult, childM, "adult", 1)).toBe(false);
     expect(canChangeRole(owner, ownerM, "adult", 1)).toBe(false);
     expect(canChangeRole(owner, ownerM, "adult", 2)).toBe(true);
+  });
+
+  it("invites: owner only, never as owner", () => {
+    expect(canInviteRole(owner, "adult")).toBe(true);
+    expect(canInviteRole(owner, "child")).toBe(true);
+    expect(canInviteRole(owner, "owner")).toBe(false);
+    expect(canInviteRole(adult, "adult")).toBe(false);
   });
 
   it("profile: self or owner", () => {

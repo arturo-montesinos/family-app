@@ -54,10 +54,12 @@ export const canManageHousehold = (actor: Actor) => isOwner(actor);
 export const canManageMembers = (actor: Actor) => isOwner(actor);
 export const canManageInvites = (actor: Actor) => isOwner(actor);
 
-/** Owner may invite any role; nobody else may invite. (Role kept in the signature for future rules.) */
+/**
+ * Only the owner invites, and never as owner: the administrator is the single owner
+ * and the only person who controls access.
+ */
 export function canInviteRole(actor: Actor, role: MemberRole): boolean {
-  void role;
-  return isOwner(actor);
+  return isOwner(actor) && role !== "owner";
 }
 
 /* ------------------------------- content --------------------------------- */
@@ -103,6 +105,8 @@ export function canChangeRole(
   ownerCount: number,
 ): boolean {
   if (!isOwner(actor)) return false;
+  // Single-owner model: nobody can be promoted to owner.
+  if (newRole === "owner" && target.role !== "owner") return false;
   if (target.role === "owner" && newRole !== "owner" && ownerCount <= 1) return false;
   return true;
 }

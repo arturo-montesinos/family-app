@@ -61,7 +61,7 @@ const en = {
   "signin.checkSpam": "Nothing after a few minutes? Check your spam folder, or send a new link.",
   "signin.useOther": "Use a different email",
   "signin.error.Verification": "That sign-in link has expired or was already used. Send yourself a new one.",
-  "signin.error.AccessDenied": "This email can't sign in. Check the address and try again.",
+  "signin.error.AccessDenied": "This app is invite-only. Ask the administrator for an invite, then sign in with the email it was sent to.",
   "signin.error.Configuration": "Sign-in isn't set up correctly on the server. Tell whoever runs this app.",
   "signin.error.EmailSignin": "We couldn't send the email. Check the address and try again.",
   "signin.error.default": "Sign-in didn't work. Try again.",
@@ -69,6 +69,9 @@ const en = {
 
   "onboarding.title": "Set up your household",
   "onboarding.lead": "Start a new household, or join one someone has already set up.",
+  "onboarding.adminLead": "You're the administrator. Set up the household, then invite your family from Settings.",
+  "onboarding.inviteOnlyTitle": "This app is invite-only",
+  "onboarding.inviteOnlyLead": "Ask the administrator to send you an invite link, then open it while signed in with the email it was sent to.",
   "onboarding.create": "Start a household",
   "onboarding.createLead": "You'll be the owner and can invite everyone else.",
   "onboarding.householdName": "Household name",

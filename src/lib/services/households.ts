@@ -3,7 +3,8 @@ import { requireUser } from "@/lib/auth-helpers";
 import * as householdQueries from "@/lib/db/queries/households";
 import * as memberQueries from "@/lib/db/queries/members";
 import type { MemberRole } from "@/lib/db/schema";
-import { BadRequestError, ForbiddenError, NotFoundError } from "@/lib/errors";
+import { countHouseholds, isAdminEmail } from "@/lib/access";
+import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "@/lib/errors";
 import {
   assertAllowed,
   assertCan,
@@ -21,6 +22,12 @@ export async function listMyHouseholds() {
 
 export async function createHousehold(input: HouseholdCreateInput) {
   const user = await requireUser({ throwOnMissing: true });
+  if (!isAdminEmail(user.email)) {
+    throw new ForbiddenError("Only the administrator can set up the household. Ask them for an invite.");
+  }
+  if ((await countHouseholds()) > 0) {
+    throw new ConflictError("The household is already set up.");
+  }
   return householdQueries.createHouseholdWithOwner({
     name: input.name,
     ownerId: user.id,

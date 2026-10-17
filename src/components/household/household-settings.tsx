@@ -339,7 +339,7 @@ function InviteForm({ householdId }: { householdId: string }) {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {ROLES.map((r) => (
+              {ROLES.filter((r) => r !== "owner").map((r) => (
                 <SelectItem key={r} value={r}>
                   {roleLabel(r)}
                 </SelectItem>

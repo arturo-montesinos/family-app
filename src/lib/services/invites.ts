@@ -3,7 +3,7 @@ import { requireUser } from "@/lib/auth-helpers";
 import * as householdQueries from "@/lib/db/queries/households";
 import * as inviteQueries from "@/lib/db/queries/invites";
 import { ConflictError, ForbiddenError, NotFoundError } from "@/lib/errors";
-import { assertCan } from "@/lib/permissions";
+import { assertAllowed, assertCan, canInviteRole } from "@/lib/permissions";
 import type { InviteCreateInput } from "@/lib/validators";
 import { actorOf, type HouseholdCtx } from "./context";
 
@@ -22,6 +22,7 @@ export function inviteUrl(token: string): string {
 
 export async function createInvite(ctx: HouseholdCtx, input: Omit<InviteCreateInput, "householdId">) {
   assertCan(actorOf(ctx), "invite:manage");
+  assertAllowed(canInviteRole(actorOf(ctx), input.role), "Invites can't make someone an owner");
   const householdId = ctx.member.householdId;
   if (await inviteQueries.isEmailMember(householdId, input.email)) {
     throw new ConflictError("That person is already a member");
