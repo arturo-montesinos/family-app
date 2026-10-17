@@ -58,6 +58,13 @@ Indexes: (household_id, starts_at) on events; (household_id, status, due_at) on 
 - `requireHousehold(householdId)` helper: loads session, asserts membership, returns member row (role). Owners manage members/invites; adults create/edit anything; children can create/complete their own todos and post, but not delete others' content.
 - Mobile later: same Auth.js session cookie, or `/api/v1` bearer token once needed.
 
+## Access model (decided 2026-10-17)
+- Single household, invite-only. `ADMIN_EMAIL` names the administrator, the only person who can create the household (once) and the sole owner. Nobody can be promoted to owner and invites can't grant owner.
+- Sign-in gate (Auth.js `signIn` callback): only the admin, existing members, or addresses with a pending invite can sign in; everyone else gets "invite-only" and no email is sent.
+- Invites: 32-byte random token, single-use, 7-day expiry, bound to the invited email, revocable.
+- Login methods: email magic link (Resend) and Google sign-in (`AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET`). Family members use Google until a domain is verified in Resend.
+- `/api/health` reports config, DB/migration state and access counts (no addresses or secrets).
+
 ## API
 - Web UI uses Server Actions (`lib/actions/*`), each validating with Zod and calling `requireHousehold`.
 - `/api/v1/*` route handlers wrap the same `lib/db` queries for the future mobile client:
