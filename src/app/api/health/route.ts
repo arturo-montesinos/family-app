@@ -38,6 +38,12 @@ export async function GET() {
         : "set (but does not start with re_ — check it)"
       : "MISSING",
     AUTH_EMAIL_FROM: from ? `set (sender domain: ${senderDomain ?? "unparseable"})` : "MISSING",
+    googleSignIn:
+      process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET
+        ? "enabled"
+        : process.env.AUTH_GOOGLE_ID || process.env.AUTH_GOOGLE_SECRET
+          ? "half-configured (need both AUTH_GOOGLE_ID and AUTH_GOOGLE_SECRET)"
+          : "off",
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL ? "set" : "not set (optional)",
     vercelEnv: process.env.VERCEL_ENV ?? "local",
   };
