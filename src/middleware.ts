@@ -10,7 +10,12 @@ import { NextResponse, type NextRequest } from "next/server";
  */
 const SESSION_COOKIES = ["authjs.session-token", "__Secure-authjs.session-token"];
 
-const PUBLIC_PATHS = [/^\/signin(\/|$)/, /^\/invite(\/|$)/, /^\/api\/auth(\/|$)/];
+const PUBLIC_PATHS = [
+  /^\/signin(\/|$)/,
+  /^\/invite(\/|$)/,
+  /^\/api\/auth(\/|$)/,
+  /^\/api\/health$/,
+];
 
 export function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl;

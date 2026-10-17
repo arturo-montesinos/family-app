@@ -34,7 +34,7 @@ function nextWeekday(from: Date, weekday: number): Date {
 }
 
 async function main() {
-  const url = process.env.DATABASE_URL;
+  const url = (await import("./url")).getDatabaseUrl();
   if (!url) {
     console.warn("[db:seed] DATABASE_URL is not set — nothing to seed.");
     return;
