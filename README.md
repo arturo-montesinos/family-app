@@ -3,6 +3,8 @@
 Shared household planner: calendar, todos and bulletin board.
 Next.js 15 (App Router) + Neon Postgres + Drizzle ORM + Auth.js v5 (email magic links via Resend) + Tailwind/shadcn/ui.
 
+Production: https://family-app-eight-omega.vercel.app
+
 See `PLAN.md` (architecture) for the full design.
 
 ## Local setup
