@@ -72,5 +72,6 @@ export async function GET() {
     env.AUTH_RESEND_KEY === "set" &&
     !!from;
 
-  return Response.json({ ok, env, database, notes }, { status: ok ? 200 : 503 });
+  // Always 200 so simple fetchers can read the body; check `ok` instead.
+  return Response.json({ ok, env, database, notes });
 }
