@@ -4,24 +4,9 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { householdMembers, users, type HouseholdMember, type User } from "@/lib/db/schema";
+import { ForbiddenError, UnauthorizedError, isUuid } from "@/lib/errors";
 
-export class UnauthorizedError extends Error {
-  readonly status = 401;
-  constructor(message = "Not signed in") {
-    super(message);
-    this.name = "UnauthorizedError";
-  }
-}
-
-export class ForbiddenError extends Error {
-  readonly status = 403;
-  constructor(message = "Not a member of this household") {
-    super(message);
-    this.name = "ForbiddenError";
-  }
-}
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export { UnauthorizedError, ForbiddenError } from "@/lib/errors";
 
 /** Current user from the database session, or null. Never redirects/throws. */
 export async function getCurrentUser(): Promise<User | null> {
@@ -54,7 +39,7 @@ export async function requireHousehold(
   opts?: { throwOnMissing?: boolean },
 ): Promise<{ user: User; member: HouseholdMember }> {
   const user = await requireUser(opts);
-  if (!UUID_RE.test(householdId)) throw new ForbiddenError();
+  if (!isUuid(householdId)) throw new ForbiddenError();
 
   const [member] = await db
     .select()
