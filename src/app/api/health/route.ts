@@ -22,6 +22,8 @@ const EXPECTED_TABLES = [
   "event_attendees",
   "todos",
   "posts",
+  "api_keys",
+  "audit_log",
 ];
 
 export async function GET() {
