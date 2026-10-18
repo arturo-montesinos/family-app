@@ -26,7 +26,7 @@ import { createApiKey, revokeApiKey } from "@/lib/actions/api-keys";
 import type { ActionResult } from "@/lib/actions/types";
 import { fieldError, toastResult } from "@/lib/action-client";
 import { SKILL_DIR, SKILL_FILENAME } from "@/lib/agent-skill/constants";
-import { API_SCOPES, type ApiKeyStatus, type ApiScope } from "@/lib/api-keys";
+import { API_SCOPES, type ApiKeyStatus, type ApiScope } from "@/lib/api-scopes";
 import { DEFAULT_TZ, todayKey, zonedInstant } from "@/lib/dates";
 import { dateLocale, t, type MessageKey } from "@/lib/i18n";
 import { cn } from "@/lib/utils";

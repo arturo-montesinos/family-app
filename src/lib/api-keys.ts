@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
+import { API_SCOPES, type ApiKeyStatus, type ApiScope } from "./api-scopes";
 
 /**
  * Agent API keys: format, hashing, scopes and rate limiting. Pure (no DB, no server-only)
@@ -13,8 +14,7 @@ import { createHash, randomBytes } from "node:crypto";
 export const API_KEY_PREFIX = "fam_";
 const KEY_RE = /^fam_[A-Za-z0-9_-]{43}$/;
 
-export const API_SCOPES = ["read", "write", "delete"] as const;
-export type ApiScope = (typeof API_SCOPES)[number];
+export { API_SCOPES, type ApiKeyStatus, type ApiScope } from "./api-scopes";
 
 export function hashApiKey(key: string): string {
   return createHash("sha256").update(key, "utf8").digest("hex");
@@ -73,8 +73,6 @@ export function normalizeScopes(scopes: readonly string[]): ApiScope[] {
 }
 
 /* ------------------------------- key status --------------------------------- */
-
-export type ApiKeyStatus = "active" | "revoked" | "expired";
 
 export function apiKeyStatus(
   key: { revokedAt: Date | null; expiresAt: Date | null },

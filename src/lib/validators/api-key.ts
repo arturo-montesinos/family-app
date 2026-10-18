@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { API_SCOPES } from "@/lib/api-keys";
+import { API_SCOPES } from "@/lib/api-scopes";
 import { AUDIT_ENTITY_TYPES } from "@/lib/audit";
 import { nullableDate, userId, uuid } from "./common";
 
