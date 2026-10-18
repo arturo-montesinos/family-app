@@ -13,6 +13,7 @@ import {
   canUpdateMemberProfile,
 } from "@/lib/permissions";
 import type { HouseholdCreateInput, HouseholdUpdateInput, MemberUpdateInput } from "@/lib/validators";
+import { audit, recordAudit } from "./audit";
 import { actorOf, type HouseholdCtx } from "./context";
 
 export async function listMyHouseholds() {
@@ -28,12 +29,19 @@ export async function createHousehold(input: HouseholdCreateInput) {
   if ((await countHouseholds()) > 0) {
     throw new ConflictError("The household is already set up.");
   }
-  return householdQueries.createHouseholdWithOwner({
+  const result = await householdQueries.createHouseholdWithOwner({
     name: input.name,
     ownerId: user.id,
     color: input.color ?? null,
     displayName: input.displayName ?? user.name ?? null,
   });
+  await recordAudit({
+    householdId: result.household.id,
+    actorUserId: user.id,
+    action: "household.create",
+    details: { entityId: result.household.id, summary: result.household.name },
+  });
+  return result;
 }
 
 export async function getHousehold(ctx: HouseholdCtx) {
@@ -46,6 +54,7 @@ export async function updateHousehold(ctx: HouseholdCtx, input: HouseholdUpdateI
   assertCan(actorOf(ctx), "household:update");
   const row = await householdQueries.updateHousehold(ctx.member.householdId, input);
   if (!row) throw new NotFoundError("Household not found");
+  await audit(ctx, "household.update", { entityId: row.id, summary: row.name });
   return row;
 }
 
@@ -93,6 +102,11 @@ export async function updateMember(ctx: HouseholdCtx, userId: string, input: Mem
     displayName: input.displayName,
   });
   if (!row) throw new NotFoundError("Member not found");
+  await audit(ctx, "member.update", {
+    entityId: userId,
+    summary: row.displayName ?? "",
+    metadata: { changed: Object.keys(input).filter((k) => input[k as keyof MemberUpdateInput] !== undefined), role: input.role },
+  });
   return row;
 }
 
@@ -109,5 +123,10 @@ export async function removeMember(ctx: HouseholdCtx, userId: string) {
     throw new ForbiddenError("Only the household owner can remove members");
   }
   await memberQueries.removeMember(householdId, userId);
+  await audit(ctx, "member.remove", {
+    entityId: userId,
+    summary: target.displayName ?? "",
+    metadata: { left: userId === ctx.user.id },
+  });
   return { householdId, userId };
 }

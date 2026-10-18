@@ -17,6 +17,7 @@ export async function listPosts(householdId: string, filter: PostFilter = {}): P
       authorId: posts.authorId,
       body: posts.body,
       pinned: posts.pinned,
+      createdViaApiKeyId: posts.createdViaApiKeyId,
       createdAt: posts.createdAt,
       updatedAt: posts.updatedAt,
       authorName: users.name,
@@ -51,10 +52,11 @@ export async function createPost(
   householdId: string,
   authorId: string,
   fields: { body: string; pinned?: boolean },
+  createdViaApiKeyId: string | null = null,
 ): Promise<Post> {
   const [row] = await db
     .insert(posts)
-    .values({ ...fields, householdId, authorId })
+    .values({ ...fields, householdId, authorId, createdViaApiKeyId })
     .returning();
   return row;
 }

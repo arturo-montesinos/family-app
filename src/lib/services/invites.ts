@@ -5,6 +5,7 @@ import * as inviteQueries from "@/lib/db/queries/invites";
 import { ConflictError, ForbiddenError, NotFoundError } from "@/lib/errors";
 import { assertAllowed, assertCan, canInviteRole } from "@/lib/permissions";
 import type { InviteCreateInput } from "@/lib/validators";
+import { audit, recordAudit } from "./audit";
 import { actorOf, type HouseholdCtx } from "./context";
 
 export const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -36,6 +37,7 @@ export async function createInvite(ctx: HouseholdCtx, input: Omit<InviteCreateIn
     expiresAt: new Date(Date.now() + INVITE_TTL_MS),
   });
   // TODO: email the link via Resend (AUTH_RESEND_KEY) — for now the UI shows/copies it.
+  await audit(ctx, "invite.create", { entityId: invite.id, summary: invite.email, metadata: { role: invite.role } });
   return { ...invite, url: inviteUrl(token) };
 }
 
@@ -46,8 +48,9 @@ export async function listInvites(ctx: HouseholdCtx) {
 
 export async function revokeInvite(ctx: HouseholdCtx, inviteId: string) {
   assertCan(actorOf(ctx), "invite:manage");
-  const ok = await inviteQueries.revokeInvite(ctx.member.householdId, inviteId);
-  if (!ok) throw new NotFoundError("Invite not found");
+  const revoked = await inviteQueries.revokeInvite(ctx.member.householdId, inviteId);
+  if (!revoked) throw new NotFoundError("Invite not found");
+  await audit(ctx, "invite.revoke", { entityId: inviteId, summary: revoked.email });
   return { id: inviteId };
 }
 
@@ -90,5 +93,11 @@ export async function acceptInvite(token: string) {
   }
   const result = await inviteQueries.consumeInviteAndAddMember(invite.id, user.id);
   if (!result) throw new ConflictError("This invite is no longer valid");
+  await recordAudit({
+    householdId: result.householdId,
+    actorUserId: user.id,
+    action: "invite.accept",
+    details: { entityId: invite.id, summary: invite.email, metadata: { role: result.role } },
+  });
   return result;
 }
