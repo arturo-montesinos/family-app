@@ -25,6 +25,11 @@ export function middleware(req: NextRequest) {
   const hasSession = SESSION_COOKIES.some((name) => req.cookies.has(name));
   if (hasSession) return NextResponse.next();
 
+  // Agent API keys: validated (hash, scopes, revocation) by the /api/v1 wrapper (src/lib/api.ts).
+  if (pathname.startsWith("/api/v1/") && /^Bearer\s+\S/i.test(req.headers.get("authorization") ?? "")) {
+    return NextResponse.next();
+  }
+
   // API clients get a 401 instead of an HTML redirect.
   if (pathname.startsWith("/api/")) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });

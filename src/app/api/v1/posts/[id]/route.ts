@@ -3,7 +3,7 @@ import { findPostHouseholdId } from "@/lib/db/queries/posts";
 import * as postService from "@/lib/services/posts";
 import { postUpdateSchema } from "@/lib/validators";
 
-const entity = { entity: "Post", findHouseholdId: findPostHouseholdId };
+const entity = { entity: "Post", findHouseholdId: findPostHouseholdId, allowApiKeys: true };
 
 /** GET /api/v1/posts/:id */
 export const GET = withEntityApi(entity, (ctx) => postService.getPost(ctx, ctx.id));

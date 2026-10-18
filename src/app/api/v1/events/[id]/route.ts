@@ -3,7 +3,7 @@ import { findEventHouseholdId } from "@/lib/db/queries/events";
 import * as eventService from "@/lib/services/events";
 import { eventUpdateSchema } from "@/lib/validators";
 
-const entity = { entity: "Event", findHouseholdId: findEventHouseholdId };
+const entity = { entity: "Event", findHouseholdId: findEventHouseholdId, allowApiKeys: true };
 
 /** GET /api/v1/events/:id (convenience; not in PLAN.md but harmless and useful for mobile). */
 export const GET = withEntityApi(entity, (ctx) => eventService.getEvent(ctx, ctx.id));
