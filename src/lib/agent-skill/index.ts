@@ -1,5 +1,7 @@
 import { SKILL_MD } from "./content.generated";
 
+export { SKILL_DIR, SKILL_FILENAME } from "./constants";
+
 /**
  * The agent skill (docs/agent-skill/family-app/SKILL.md), embedded at build time.
  * Pure: safe for server pages, route handlers and tests.
@@ -7,8 +9,6 @@ import { SKILL_MD } from "./content.generated";
 
 /** Base URL written in the canonical SKILL.md; replaced with the deployment's URL when served. */
 export const SKILL_DEFAULT_BASE_URL = "https://family-app-eight-omega.vercel.app";
-export const SKILL_FILENAME = "SKILL.md";
-export const SKILL_DIR = "family-app";
 
 /**
  * SKILL.md with the base URL set to `NEXT_PUBLIC_APP_URL`, else `fallbackOrigin` (the
