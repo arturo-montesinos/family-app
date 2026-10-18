@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { ColorPicker } from "@/components/common/color-picker";
+import { AddedViaAgent } from "@/components/common/agent-names";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { FieldError } from "@/components/common/field-error";
 import { AvatarStack, MemberAvatar } from "@/components/common/member-avatar";
@@ -206,6 +207,7 @@ function EventForm({ target, onClose, members, me, actor, tz }: Props & { target
         ) : (
           <DialogDescription className="sr-only">{t("event.title")}</DialogDescription>
         )}
+        {editing ? <AddedViaAgent keyId={editing.createdViaApiKeyId} /> : null}
       </DialogHeader>
 
       <div className="grid gap-2">
@@ -418,6 +420,7 @@ function EventReadOnly({ occurrence, members, tz }: { occurrence: EventOccurrenc
           <DialogTitle className="text-xl">{occurrence.title}</DialogTitle>
         </div>
         <DialogDescription className="sr-only">{t("event.viewTitle")}</DialogDescription>
+        <AddedViaAgent keyId={occurrence.createdViaApiKeyId} />
       </DialogHeader>
       <ul className="grid gap-2 text-sm">
         <li className="flex items-center gap-2">
