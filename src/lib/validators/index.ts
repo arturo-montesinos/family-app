@@ -4,3 +4,4 @@ export * from "./invite";
 export * from "./event";
 export * from "./todo";
 export * from "./post";
+export * from "./api-key";

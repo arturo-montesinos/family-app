@@ -2,6 +2,7 @@
 
 import { useOptimistic, useTransition } from "react";
 import { CalendarClockIcon, CheckIcon } from "lucide-react";
+import { ViaAgent } from "@/components/common/agent-names";
 import { MemberAvatar } from "@/components/common/member-avatar";
 import { toggleTodo } from "@/lib/actions/todos";
 import { toastResult } from "@/lib/action-client";
@@ -70,6 +71,7 @@ export function TodoItem({
           <p className={cn("text-[0.97rem] leading-snug", done && "text-muted-foreground line-through")}>{todo.title}</p>
         )}
         {todo.details && !done ? <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">{todo.details}</p> : null}
+        {todo.createdViaApiKeyId && !done ? <ViaAgent keyId={todo.createdViaApiKeyId} className="block text-xs" /> : null}
         {due && !done ? (
           <span
             className={cn(

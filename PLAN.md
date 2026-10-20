@@ -56,7 +56,7 @@ Indexes: (household_id, starts_at) on events; (household_id, status, due_at) on 
 ## Auth & authorization
 - Magic link via Resend. First sign-in with no household → onboarding: create household or paste invite.
 - `requireHousehold(householdId)` helper: loads session, asserts membership, returns member row (role). Owners manage members/invites; adults create/edit anything; children can create/complete their own todos and post, but not delete others' content.
-- Mobile later: same Auth.js session cookie, or `/api/v1` bearer token once needed.
+- Mobile later: same Auth.js session cookie. Agents use `/api/v1` bearer API keys (see below).
 
 ## Access model (decided 2026-10-17)
 - Single household, invite-only. `ADMIN_EMAIL` names the administrator, the only person who can create the household (once) and the sole owner. Nobody can be promoted to owner and invites can't grant owner.
@@ -64,6 +64,20 @@ Indexes: (household_id, starts_at) on events; (household_id, status, due_at) on 
 - Invites: 32-byte random token, single-use, 7-day expiry, bound to the invited email, revocable.
 - Login methods: email magic link (Resend) and Google sign-in (`AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET`). Family members use Google until a domain is verified in Resend.
 - `/api/health` reports config, DB/migration state and access counts (no addresses or secrets).
+
+## Agent API keys + audit log (added 2026-10-18)
+- `api_keys` (hash + 8-char prefix, scopes ⊆ read/write/delete, expiry, revoked_at, last_used_at) and
+  `audit_log` (actor_type user|api_key, action, entity, summary, metadata, ip; index (household_id, occurred_at desc)).
+- Events, todos and posts have a nullable `created_via_api_key_id`. `created_by`/`author_id` stay the
+  admin who owns the key, and the UI shows "via <key name>".
+- `/api/v1` accepts `Authorization: Bearer fam_…` alongside the session cookie. Routes opt in with
+  `allowApiKeys`. Method → scope (GET read, POST/PATCH write, DELETE delete). Keys are bound to their
+  household and never reach households/invites/members management/keys. In-memory per-key rate limit.
+- Every mutation is audited from the services layer (`services/audit.ts`). An audit failure is logged and
+  never fails the action.
+- Owner-only Settings → API keys (create, one-time reveal, revoke, agent skill copy/download) and Settings → Activity.
+- Agent skill: `docs/agent-skill/family-app/SKILL.md`, embedded at build (`scripts/generate-skill.mjs`) and
+  served at `GET /api/v1/skill`.
 
 ## API
 - Web UI uses Server Actions (`lib/actions/*`), each validating with Zod and calling `requireHousehold`.
@@ -73,6 +87,7 @@ Indexes: (household_id, starts_at) on events; (household_id, status, due_at) on 
   - `GET/POST /api/v1/households/:id/todos`, `PATCH/DELETE /api/v1/todos/:id`
   - `GET/POST /api/v1/households/:id/posts`, `PATCH/DELETE /api/v1/posts/:id`
   - `POST /api/v1/invites`, `POST /api/v1/invites/:token/accept`
+  - `GET /api/v1/me`, `POST /api/v1/todos/:id/complete`, `GET /api/v1/skill` (agent bootstrap / helpers)
 
 ## Environment
 ```

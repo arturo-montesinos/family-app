@@ -4,7 +4,8 @@ import type { MemberRole } from "@/lib/db/schema";
 /**
  * Role rules (PLAN.md "Auth & authorization"). Pure: no DB, no server-only.
  *
- *  - owner: everything an adult can do + manage the household, members and invites.
+ *  - owner: everything an adult can do + manage the household, members, invites,
+ *           agent API keys, and view the activity (audit) log.
  *  - adult: create / edit / delete any event, todo or post in the household; pin posts.
  *  - child: create events, todos and posts; edit/delete only content they created;
  *           complete (toggle) todos they created or that are assigned to them;
@@ -28,6 +29,8 @@ export type Action =
   | "household:delete"
   | "member:manage" // change role / remove other members
   | "invite:manage"
+  | "api_key:manage" // create / list / revoke agent API keys
+  | "audit:view" // activity log
   | "content:create"
   | "content:update"
   | "content:delete"
@@ -53,6 +56,9 @@ export function isCreator(actor: Actor, row: ContentRowLike): boolean {
 export const canManageHousehold = (actor: Actor) => isOwner(actor);
 export const canManageMembers = (actor: Actor) => isOwner(actor);
 export const canManageInvites = (actor: Actor) => isOwner(actor);
+/** Agent API keys act with the owner's powers, so only the owner manages them. */
+export const canManageApiKeys = (actor: Actor) => isOwner(actor);
+export const canViewAudit = (actor: Actor) => isOwner(actor);
 
 /**
  * Only the owner invites, and never as owner: the administrator is the single owner
@@ -137,6 +143,10 @@ export function can(actor: Actor, action: Action, row?: ContentRowLike): boolean
       return canManageMembers(actor);
     case "invite:manage":
       return canManageInvites(actor);
+    case "api_key:manage":
+      return canManageApiKeys(actor);
+    case "audit:view":
+      return canViewAudit(actor);
     case "content:create":
       return canCreate(actor);
     case "content:update":
@@ -157,6 +167,8 @@ const DEFAULT_MESSAGES: Record<Action, string> = {
   "household:delete": "Only the household owner can delete the household",
   "member:manage": "Only the household owner can manage members",
   "invite:manage": "Only the household owner can manage invites",
+  "api_key:manage": "Only the household owner can manage API keys",
+  "audit:view": "Only the household owner can view activity",
   "content:create": "You can't create this",
   "content:update": "You can only edit your own items",
   "content:delete": "You can only delete your own items",

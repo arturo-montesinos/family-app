@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { AddedViaAgent } from "@/components/common/agent-names";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { FieldError } from "@/components/common/field-error";
 import { MemberAvatar } from "@/components/common/member-avatar";
@@ -101,6 +102,7 @@ function TodoForm({
       <DialogHeader>
         <DialogTitle>{todo ? t("todos.edit") : t("todos.newTitle")}</DialogTitle>
         <DialogDescription className="sr-only">{t("todos.edit")}</DialogDescription>
+        {todo ? <AddedViaAgent keyId={todo.createdViaApiKeyId} /> : null}
       </DialogHeader>
       <div className="grid gap-2">
         <Label htmlFor="td-title">{t("todos.titleLabel")}</Label>

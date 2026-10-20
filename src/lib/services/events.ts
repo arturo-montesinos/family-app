@@ -5,6 +5,8 @@ import { BadRequestError, NotFoundError, assertUuid } from "@/lib/errors";
 import { assertCan } from "@/lib/permissions";
 import { normalizeAllDayRange } from "@/lib/recurrence";
 import type { EventCreateInput, EventRangeInput, EventUpdateInput } from "@/lib/validators";
+import { changedFields } from "@/lib/audit";
+import { audit } from "./audit";
 import { actorOf, type HouseholdCtx } from "./context";
 
 async function validAttendees(householdId: string, ids: string[]) {
@@ -34,7 +36,7 @@ export async function createEvent(ctx: HouseholdCtx, input: EventCreateInput) {
   const range = input.allDay
     ? normalizeAllDayRange(input.startsAt, input.endsAt)
     : { startsAt: input.startsAt, endsAt: input.endsAt ?? null };
-  return eventQueries.createEvent(
+  const row = await eventQueries.createEvent(
     householdId,
     ctx.user.id,
     {
@@ -47,7 +49,14 @@ export async function createEvent(ctx: HouseholdCtx, input: EventCreateInput) {
       ...range,
     },
     attendeeIds,
+    ctx.via?.id ?? null,
   );
+  await audit(ctx, "event.create", {
+    entityId: row.id,
+    summary: row.title,
+    metadata: { startsAt: row.startsAt.toISOString(), allDay: row.allDay, rrule: row.rrule },
+  });
+  return row;
 }
 
 export async function updateEvent(ctx: HouseholdCtx, eventId: string, input: EventUpdateInput) {
@@ -81,6 +90,11 @@ export async function updateEvent(ctx: HouseholdCtx, eventId: string, input: Eve
     attendeeIds,
   );
   if (!row) throw new NotFoundError("Event not found");
+  await audit(ctx, "event.update", {
+    entityId: row.id,
+    summary: row.title,
+    metadata: { changed: changedFields(input) },
+  });
   return row;
 }
 
@@ -88,5 +102,10 @@ export async function deleteEvent(ctx: HouseholdCtx, eventId: string) {
   const existing = await getEvent(ctx, eventId);
   assertCan(actorOf(ctx), "content:delete", existing);
   await eventQueries.deleteEvent(ctx.member.householdId, eventId);
+  await audit(ctx, "event.delete", {
+    entityId: eventId,
+    summary: existing.title,
+    metadata: { startsAt: existing.startsAt.toISOString(), rrule: existing.rrule },
+  });
   return { id: eventId };
 }

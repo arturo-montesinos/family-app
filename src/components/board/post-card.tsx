@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
+import { ViaAgent } from "@/components/common/agent-names";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { FieldError } from "@/components/common/field-error";
 import { MemberAvatar } from "@/components/common/member-avatar";
@@ -99,6 +100,11 @@ export function PostCard({
         <MemberAvatar member={author ?? null} size="sm" title={name} />
         <span className="min-w-0 flex-1 truncate text-muted-foreground">
           <span className="font-medium text-foreground">{name}</span>{" "}
+          {post.createdViaApiKeyId ? (
+            <>
+              <ViaAgent keyId={post.createdViaApiKeyId} />{" "}
+            </>
+          ) : null}
           <time dateTime={created.toISOString()} suppressHydrationWarning>
             {formatDistanceToNowStrict(created, { addSuffix: true, locale: dateLocale })}
           </time>

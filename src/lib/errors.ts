@@ -46,6 +46,18 @@ export class ConflictError extends AppError {
   }
 }
 
+export class TooManyRequestsError extends AppError {
+  override readonly status = 429;
+  constructor(
+    message = "Too many requests",
+    /** Seconds until the client may retry (sent as Retry-After). */
+    readonly retryAfter?: number,
+  ) {
+    super(message);
+    this.name = "TooManyRequestsError";
+  }
+}
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function isUuid(value: unknown): value is string {

@@ -2,16 +2,29 @@ import "server-only";
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { requireUser } from "@/lib/auth-helpers";
+import { apiKeyAccessError, bearerToken } from "@/lib/api-keys";
 import type { User } from "@/lib/db/schema";
-import { AppError, BadRequestError, assertUuid } from "@/lib/errors";
-import { resolveByEntity, resolveHousehold, type HouseholdCtx } from "@/lib/services/context";
+import { AppError, BadRequestError, ForbiddenError, TooManyRequestsError, assertUuid } from "@/lib/errors";
+import { authenticateApiKey } from "@/lib/services/api-keys";
+import {
+  resolveByEntity,
+  resolveHouseholdFor,
+  type HouseholdCtx,
+  type Principal,
+} from "@/lib/services/context";
 
 /**
  * Shared wrapper for /api/v1 route handlers.
  *
+ * Auth: the Auth.js session cookie, or `Authorization: Bearer fam_…` (agent API key).
+ * API keys act as the admin who created them, are bound to that household, and:
+ *   - only reach routes that opt in with `allowApiKeys: true` (403 otherwise, any scope);
+ *   - need a scope per method: GET → read, POST/PATCH → write, DELETE → delete (403);
+ *   - are rate limited per key (429 + Retry-After; in-memory, per instance).
+ *
  * Success → 200 (or `status`) `{ data }`. Errors → `{ error, issues? }` with:
  *   ZodError 422 (issues = zod issues) · invalid JSON 400 · UnauthorizedError 401 ·
- *   ForbiddenError 403 · NotFoundError 404 · ConflictError 409 · other 500.
+ *   ForbiddenError 403 · NotFoundError 404 · ConflictError 409 · TooManyRequests 429 · other 500.
  */
 
 export type ApiErrorBody = { error: string; issues?: z.core.$ZodIssue[] };
@@ -26,6 +39,7 @@ export type ApiContext<B, Q> = {
   body: B;
   query: Q;
   user: User;
+  principal: Principal;
 };
 
 export type HouseholdApiContext<B, Q> = ApiContext<B, Q> & HouseholdCtx & { householdId: string };
@@ -35,6 +49,8 @@ type Options<BS extends z.ZodType | undefined, QS extends z.ZodType | undefined>
   query?: QS;
   /** HTTP status on success (default 200). */
   status?: number;
+  /** Let agent API keys call this route (scope checked by method). Default: sessions only. */
+  allowApiKeys?: boolean;
 };
 
 type Out<S> = S extends z.ZodType ? z.output<S> : undefined;
@@ -45,6 +61,11 @@ export function apiError(status: number, error: string, issues?: z.core.$ZodIssu
 
 export function toErrorResponse(err: unknown): NextResponse<ApiErrorBody> {
   if (err instanceof z.ZodError) return apiError(422, "Validation failed", err.issues);
+  if (err instanceof TooManyRequestsError) {
+    const res = apiError(err.status, err.message);
+    if (err.retryAfter) res.headers.set("Retry-After", String(err.retryAfter));
+    return res;
+  }
   if (err instanceof AppError) return apiError(err.status, err.message);
   console.error("[api] unexpected error:", err);
   return apiError(500, "Internal server error");
@@ -76,10 +97,34 @@ async function readParams(ctx: RouteContext | undefined): Promise<Record<string,
   return out;
 }
 
-async function authenticate(req: NextRequest, routeCtx: RouteContext | undefined) {
+/**
+ * Who is calling. A Bearer header always means "API key" (a bad key is 401 even when a
+ * session cookie is also present); otherwise the session cookie.
+ */
+export async function authenticatePrincipal(
+  req: Request,
+  opts: { allowApiKeys?: boolean } = {},
+): Promise<Principal> {
+  const token = bearerToken(req.headers.get("authorization"));
+  if (token === null) {
+    return { kind: "session", user: await requireUser({ throwOnMissing: true }) };
+  }
+  const principal = await authenticateApiKey(token);
+  if (principal.kind === "api_key") {
+    const denied = apiKeyAccessError({
+      allowApiKeys: opts.allowApiKeys,
+      method: req.method,
+      scopes: principal.key.scopes,
+    });
+    if (denied) throw new ForbiddenError(denied);
+  }
+  return principal;
+}
+
+async function authenticate(req: NextRequest, routeCtx: RouteContext | undefined, allowApiKeys?: boolean) {
   const params = await readParams(routeCtx);
-  const user = await requireUser({ throwOnMissing: true });
-  return { req, params, user };
+  const principal = await authenticatePrincipal(req, { allowApiKeys });
+  return { req, params, user: principal.user, principal };
 }
 
 /** Parses body/query AFTER auth + membership checks, so non-members can't probe validation. */
@@ -103,7 +148,7 @@ export function withApi<T, BS extends z.ZodType | undefined = undefined, QS exte
 ) {
   return async (req: NextRequest, routeCtx: RouteContext) => {
     try {
-      const base = await authenticate(req, routeCtx);
+      const base = await authenticate(req, routeCtx, opts.allowApiKeys);
       const input = await parseInput(req, opts);
       return respond(await handler({ ...base, ...input }), opts.status);
     } catch (err) {
@@ -112,7 +157,7 @@ export function withApi<T, BS extends z.ZodType | undefined = undefined, QS exte
   };
 }
 
-/** Route scoped by a household id path param (default `[id]`): runs requireHousehold. */
+/** Route scoped by a household id path param (default `[id]`): checks membership. */
 export function withHouseholdApi<
   T,
   BS extends z.ZodType | undefined = undefined,
@@ -123,10 +168,10 @@ export function withHouseholdApi<
 ) {
   return async (req: NextRequest, routeCtx: RouteContext) => {
     try {
-      const base = await authenticate(req, routeCtx);
+      const base = await authenticate(req, routeCtx, opts.allowApiKeys);
       const householdId = base.params[opts.param ?? "id"] ?? "";
       assertUuid(householdId, "Household");
-      const hh = await resolveHousehold(householdId);
+      const hh = await resolveHouseholdFor(base.principal, householdId);
       const input = await parseInput(req, opts);
       return respond(await handler({ ...base, ...input, ...hh, householdId }), opts.status);
     } catch (err) {
@@ -136,8 +181,8 @@ export function withHouseholdApi<
 }
 
 /**
- * Route addressed by an entity id (`[id]`): finds the entity's household, then
- * requireHousehold. Non-members get 404 so ids don't leak across households.
+ * Route addressed by an entity id (`[id]`): finds the entity's household, then checks
+ * membership. Non-members (and keys of other households) get 404 so ids don't leak.
  */
 export function withEntityApi<
   T,
@@ -153,9 +198,9 @@ export function withEntityApi<
 ) {
   return async (req: NextRequest, routeCtx: RouteContext) => {
     try {
-      const base = await authenticate(req, routeCtx);
+      const base = await authenticate(req, routeCtx, opts.allowApiKeys);
       const id = base.params[opts.param ?? "id"] ?? "";
-      const hh = await resolveByEntity(id, opts.entity, opts.findHouseholdId);
+      const hh = await resolveByEntity(id, opts.entity, opts.findHouseholdId, base.principal);
       const input = await parseInput(req, opts);
       return respond(await handler({ ...base, ...input, ...hh, id }), opts.status);
     } catch (err) {

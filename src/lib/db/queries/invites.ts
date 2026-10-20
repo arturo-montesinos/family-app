@@ -30,12 +30,16 @@ export async function getInviteByToken(token: string): Promise<Invite | null> {
   return row ?? null;
 }
 
-export async function revokeInvite(householdId: string, inviteId: string): Promise<boolean> {
-  const rows = await db
+/** Deletes the invite; returns its id + email (for the audit log), or null if not found. */
+export async function revokeInvite(
+  householdId: string,
+  inviteId: string,
+): Promise<{ id: string; email: string } | null> {
+  const [row] = await db
     .delete(invites)
     .where(and(eq(invites.householdId, householdId), eq(invites.id, inviteId)))
-    .returning({ id: invites.id });
-  return rows.length > 0;
+    .returning({ id: invites.id, email: invites.email });
+  return row ?? null;
 }
 
 /** Marks an invite accepted (only if still pending). Returns false when it was already used. */

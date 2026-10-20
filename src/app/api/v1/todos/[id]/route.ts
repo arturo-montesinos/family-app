@@ -3,7 +3,7 @@ import { findTodoHouseholdId } from "@/lib/db/queries/todos";
 import * as todoService from "@/lib/services/todos";
 import { todoUpdateSchema } from "@/lib/validators";
 
-const entity = { entity: "Todo", findHouseholdId: findTodoHouseholdId };
+const entity = { entity: "Todo", findHouseholdId: findTodoHouseholdId, allowApiKeys: true };
 
 /** GET /api/v1/todos/:id */
 export const GET = withEntityApi(entity, (ctx) => todoService.getTodo(ctx, ctx.id));

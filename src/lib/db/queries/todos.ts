@@ -2,7 +2,10 @@ import { and, asc, desc, eq, sql, type SQL } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { todos, type NewTodo, type Todo, type TodoStatus } from "@/lib/db/schema";
 
-type TodoFields = Omit<NewTodo, "id" | "householdId" | "createdBy" | "createdAt" | "updatedAt">;
+type TodoFields = Omit<
+  NewTodo,
+  "id" | "householdId" | "createdBy" | "createdViaApiKeyId" | "createdAt" | "updatedAt"
+>;
 
 export type TodoFilter = { status?: TodoStatus; assignedTo?: string };
 
@@ -58,10 +61,15 @@ function withCompletion<T extends { status?: TodoStatus }>(patch: T): T & { comp
   return patch;
 }
 
-export async function createTodo(householdId: string, createdBy: string, fields: TodoFields): Promise<Todo> {
+export async function createTodo(
+  householdId: string,
+  createdBy: string,
+  fields: TodoFields,
+  createdViaApiKeyId: string | null = null,
+): Promise<Todo> {
   const [row] = await db
     .insert(todos)
-    .values({ ...withCompletion(fields), householdId, createdBy })
+    .values({ ...withCompletion(fields), householdId, createdBy, createdViaApiKeyId })
     .returning();
   return row;
 }

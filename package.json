@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "npm run db:migrate && next build --turbopack",
+    "build": "node scripts/generate-skill.mjs && npm run db:migrate && next build --turbopack",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
@@ -13,7 +13,8 @@
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsx src/lib/db/seed.ts",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "skill:generate": "node scripts/generate-skill.mjs"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.3",

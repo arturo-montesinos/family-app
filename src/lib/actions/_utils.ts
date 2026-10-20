@@ -47,7 +47,7 @@ export async function run<T>(fn: () => Promise<T>): Promise<ActionResult<T>> {
 }
 
 /** Array-valued form fields (repeated inputs / multi-selects). */
-const ARRAY_FIELDS = new Set(["attendeeIds"]);
+const ARRAY_FIELDS = new Set(["attendeeIds", "scopes"]);
 
 /** FormData → plain object; repeated keys and known array fields become arrays. Drops `$ACTION_*` keys. */
 export function formToObject(input: unknown): unknown {
@@ -92,6 +92,8 @@ export const ROUTES = {
   todos: "/todos",
   board: "/board",
   settings: "/settings/household",
+  apiKeys: "/settings/api-keys",
+  activity: "/settings/activity",
 } as const;
 
 export function revalidate(...paths: string[]) {

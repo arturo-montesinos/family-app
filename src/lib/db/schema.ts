@@ -2,6 +2,7 @@ import {
   boolean,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   primaryKey,
@@ -9,6 +10,7 @@ import {
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import type { AdapterAccountType } from "next-auth/adapters";
 
 /* -------------------------------------------------------------------------- */
@@ -17,9 +19,11 @@ import type { AdapterAccountType } from "next-auth/adapters";
 
 export const memberRoleEnum = pgEnum("member_role", ["owner", "adult", "child"]);
 export const todoStatusEnum = pgEnum("todo_status", ["open", "done"]);
+export const auditActorTypeEnum = pgEnum("audit_actor_type", ["user", "api_key"]);
 
 export type MemberRole = (typeof memberRoleEnum.enumValues)[number];
 export type TodoStatus = (typeof todoStatusEnum.enumValues)[number];
+export type AuditActorType = (typeof auditActorTypeEnum.enumValues)[number];
 
 /* -------------------------------------------------------------------------- */
 /*  Auth.js tables (shape required by @auth/drizzle-adapter)                  */
@@ -133,6 +137,64 @@ export const invites = pgTable(
 );
 
 /* -------------------------------------------------------------------------- */
+/*  Agent API keys + audit log                                                */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * API keys let AI agents call /api/v1 on behalf of the admin who created them.
+ * Only the SHA-256 hash of the full key is stored; `prefix` is the short visible id.
+ * `scopes` ⊆ {read, write, delete} (see lib/api-keys.ts).
+ */
+export const apiKeys = pgTable(
+  "api_keys",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    householdId: uuid("household_id")
+      .notNull()
+      .references(() => households.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    prefix: text("prefix").notNull(),
+    keyHash: text("key_hash").notNull().unique(),
+    scopes: text("scopes").array().notNull().default(sql`'{read}'::text[]`),
+    createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+    expiresAt: timestamp("expires_at", { mode: "date", withTimezone: true }),
+    lastUsedAt: timestamp("last_used_at", { mode: "date", withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { mode: "date", withTimezone: true }),
+  },
+  (t) => [index("api_keys_household_idx").on(t.householdId)],
+);
+
+/** Who did what, from the web UI (actor_type=user) or an API key (actor_type=api_key). */
+export const auditLog = pgTable(
+  "audit_log",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    householdId: uuid("household_id")
+      .notNull()
+      .references(() => households.id, { onDelete: "cascade" }),
+    occurredAt: timestamp("occurred_at", { mode: "date", withTimezone: true }).notNull().defaultNow(),
+    actorType: auditActorTypeEnum("actor_type").notNull(),
+    actorUserId: text("actor_user_id").references(() => users.id, { onDelete: "set null" }),
+    apiKeyId: uuid("api_key_id").references(() => apiKeys.id, { onDelete: "set null" }),
+    /** e.g. "event.create", "api_key.revoke" (see lib/audit.ts) */
+    action: text("action").notNull(),
+    entityType: text("entity_type").notNull(),
+    /** Text, not uuid: member entities are Auth.js user ids. */
+    entityId: text("entity_id"),
+    /** Short human description (a title, a name). Never secrets. */
+    summary: text("summary").notNull().default(""),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>(),
+    ip: text("ip"),
+  },
+  (t) => [index("audit_log_household_occurred_at_idx").on(t.householdId, t.occurredAt.desc())],
+);
+
+/** Nullable link to the API key that created a row (created_by stays the key's owner). */
+const createdViaApiKeyId = () =>
+  uuid("created_via_api_key_id").references(() => apiKeys.id, { onDelete: "set null" });
+
+/* -------------------------------------------------------------------------- */
 /*  Calendar                                                                  */
 /* -------------------------------------------------------------------------- */
 
@@ -153,6 +215,7 @@ export const events = pgTable(
     rrule: text("rrule"),
     color: text("color"),
     createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdViaApiKeyId: createdViaApiKeyId(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -190,6 +253,7 @@ export const todos = pgTable(
     status: todoStatusEnum("status").notNull().default("open"),
     completedAt: timestamp("completed_at", { mode: "date", withTimezone: true }),
     createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdViaApiKeyId: createdViaApiKeyId(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -210,6 +274,7 @@ export const posts = pgTable(
     authorId: text("author_id").references(() => users.id, { onDelete: "set null" }),
     body: text("body").notNull(),
     pinned: boolean("pinned").notNull().default(false),
+    createdViaApiKeyId: createdViaApiKeyId(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -241,3 +306,7 @@ export type Todo = typeof todos.$inferSelect;
 export type NewTodo = typeof todos.$inferInsert;
 export type Post = typeof posts.$inferSelect;
 export type NewPost = typeof posts.$inferInsert;
+export type ApiKey = typeof apiKeys.$inferSelect;
+export type NewApiKey = typeof apiKeys.$inferInsert;
+export type AuditLogRow = typeof auditLog.$inferSelect;
+export type NewAuditLogRow = typeof auditLog.$inferInsert;

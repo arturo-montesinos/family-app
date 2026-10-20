@@ -7,7 +7,10 @@ import type { BatchList } from "./_batch";
 export type EventWithAttendees = Event & { attendeeIds: string[] };
 export type EventOccurrence = Occurrence<EventWithAttendees>;
 
-type EventFields = Omit<NewEvent, "id" | "householdId" | "createdBy" | "createdAt" | "updatedAt">;
+type EventFields = Omit<
+  NewEvent,
+  "id" | "householdId" | "createdBy" | "createdViaApiKeyId" | "createdAt" | "updatedAt"
+>;
 
 /** Attaches attendee ids to a list of events (1 extra query). */
 async function withAttendees(rows: Event[]): Promise<EventWithAttendees[]> {
@@ -89,12 +92,13 @@ export async function createEvent(
   createdBy: string,
   fields: EventFields,
   attendeeIds: string[],
+  createdViaApiKeyId: string | null = null,
 ): Promise<EventWithAttendees> {
   const id = crypto.randomUUID();
   const unique = [...new Set(attendeeIds)];
   const insertEvent = db
     .insert(events)
-    .values({ ...fields, id, householdId, createdBy })
+    .values({ ...fields, id, householdId, createdBy, createdViaApiKeyId })
     .returning();
   const ops: BatchList = [insertEvent];
   if (unique.length) {
